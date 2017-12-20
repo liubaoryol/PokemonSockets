@@ -22,16 +22,16 @@ void HandleTCPClient(int clntSocket){
   while(recvMsgSize > 0){
     
     /* Confirmation message back to client */
-    if(send(clntSocket, serverResponse, sizeof(serverResponse), 0) < 0)
-      DieWithError("recv() failed");
-
+    if(send(clntSocket, serverResponse, sizeof(serverResponse), 0) != sizeof(serverResponse))
+      DieWithError("recv() failed");    
+    
     /* See if there is more data to receive */
     if((recvMsgSize = recv(clntSocket, buffer, RCVBUFSIZE, 0)) < 0)
       DieWithError("recv() failed");
-
+    
   }
 
-  printf("Data Received");
+  printf("Data Received\n");
   close(clntSocket);    /* Close client socket */
   
 };

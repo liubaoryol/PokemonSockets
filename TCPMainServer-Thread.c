@@ -49,6 +49,6 @@ void *ThreadMain(void *threadArgs){
   free(threadArgs);  /* Deallocate memory for argument */
 
   HandleTCPClient(clntSock);
-
+  
   return (NULL);
 }
