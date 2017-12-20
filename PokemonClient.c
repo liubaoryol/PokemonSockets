@@ -62,6 +62,16 @@ int main(int argc, char *argv[])
 	else
 		printf("Bytes send to server: %i \n",bytesSend);
 
+	/*RECEIVING MSG (STARTING POKEMON CAPTURE PROTOCOL 021: "Catch 'em all")*/
+	if((bytesRcvd=recv(sock,pokeBuffer,RCVBUFSIZE-1,0)) < 0)
+		DieWithError("recv () failed or connection died prematurely");
+
+	pokeBuffer[bytesRcvd]='\0';
+
+	printf("Server response: ");
+	printf(pokeBuffer);
+	printf("\n");
+
 	close(sock);
 
 	exit(0);
