@@ -28,7 +28,7 @@ void HandleTCPClient(int clntSocket){
     /* See if there is more data to receive */
     if((recvMsgSize = recv(clntSocket, buffer, RCVBUFSIZE, 0)) < 0)
       DieWithError("recv() failed");
-    
+
   }
 
   printf("Data Received");
