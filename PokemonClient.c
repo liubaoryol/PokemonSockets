@@ -6,7 +6,7 @@
 #include <unistd.h>         /* for close() */
 #include <pthread.h>         /* for POSIX threads */
 #include "DieWithError.h"  /* error handling function */
-#include "MassageDefinition.h"
+#include "MessageDefinition.h"
 
 #define SERV_PORT 9999            /* Server will run on this port */
 #define RCVBUFSIZE 32
@@ -35,7 +35,7 @@ int main(int argc, char *argv[])
 	servPort = atoi(argv[2]); /*cast String to int*/
 
 	/*CREATING MSG STRUCTURE*/
-	msg_type1 *msg_t1 = (struct msg_type1 *)(unsigned char *)malloc(sizeof (unsigned char))
+	msg_type1 *msg_t1 = (struct msg_type1 *)(unsigned char *)malloc(sizeof (unsigned char));
 	
 	memcpy(msg_t1->code, &code, sizeof(msg_t1->code));
 
