@@ -1,12 +1,12 @@
 #include <stdio.h>             /* for printf() and fprintf() */
 #include <sys/socket.h>        /* for recv() and send() */
 #include <unistd.h>            /* for close() */
+#include <stdlib.h>            /* for rand() and srand() */
+#include <time.h>              /* for time() */
 #include "MessageDefinition.h" /* structures for messages */
 
-#define RCVBUFSIZE 1     
-
+#define RCVBUFSIZE 1           /* Always receive just one byte */
 void DieWithError(char *errorMessage);            /* Error handling function */
-
 void interaction(unsigned char *code, int *state, int clntSocket);  /* Code/state handling function */
 
 void HandleTCPClient(int clntSocket){
@@ -22,7 +22,6 @@ void HandleTCPClient(int clntSocket){
     
   }
   
-
   close(clntSocket);    /* Close client socket */
   
   printf("The socket is closed\n");
@@ -30,13 +29,17 @@ void HandleTCPClient(int clntSocket){
 };
 
 
+/* This function handle all the send and receive interaction
+   based on the received code and the state of the thread,
+   it can be understood as the transition funcion of the
+   state machine,also sends a response */
+
 void interaction(unsigned char* code, int* state, int clntSocket){
   
   char serverResponse[22];     /* for store confirmation message */
   char buffer[RCVBUFSIZE];     /* buffer for received message */
   int recvMsgSize;             /* Size of received message */
   int codeToSend;              /* for store the codes of messages to send */
-  int randomPoke = 1;          /* for store the poke that client is trying to capture */
   int numAttemps;              /* for store the number of attemps left */
   
   /* for store messages structures to send */
@@ -50,6 +53,9 @@ void interaction(unsigned char* code, int* state, int clntSocket){
   msg_type3* getType3Message(int randomPoke,int *attemps);  /* returns the structure for send message type 3 */
   msg_type4* getType4Message(int randomPoke);               /* returns the structure for send message type 4 */      
   void sendErrorCode(int clntSocket, char* message);        /* sends a error code 40 message to the client */
+
+  srand((unsigned)time(NULL));    /* obtain random seed */
+  int randomPoke = rand() % 9;    /* generate random number from 0 to 8, the poke client is trying to capture */
   
   /* Changing from start state 0 to state 1  */
   
@@ -78,8 +84,9 @@ void interaction(unsigned char* code, int* state, int clntSocket){
     
     if(send(clntSocket, msgtype2, sizeof(serverResponse), 0) != sizeof(serverResponse))
       DieWithError("send() failed");
+
     
-  }else if(*code == 10 && *state == 1 ||
+  }else if(*code == 10 && *state == 1 || /* All this cases have the same behavior */
 	   *code == 30 && *state == 1 ||
 	   *code == 31 && *state == 1 ){
     
@@ -118,19 +125,21 @@ void interaction(unsigned char* code, int* state, int clntSocket){
       *state = 7;
       
     }else{ /* Code here must be 30, the client want to catch the Poke */
-
+      
       /* See if our lucky guy actually got the Poke */
-      int random = 56;
-      if(random >= 55 ){
+      int r = random() % 100;
+      if(r >= 55 ){
 	
 	/* He got it! Get the correct message */      
-	msgtype4 = getType4Message(randomPoke);
+	msgtype4 = getType4Message(randomPoke);  
+	
 	/* Send the answer */
-	if(send(clntSocket, msgtype4, sizeof(msgtype4), 0) != sizeof(msgtype4))
+	if(send(clntSocket, msgtype4, sizeof(struct msg_type4), 0) != sizeof(struct msg_type4))
 	DieWithError("send() failed");
 	
 	/* Change state to "wait for terminate session" state */
-	*state = 6;      		
+	*state = 6;
+	
       }else{
 	
 	/* S&#t! Try again, See if number of attemps is Zero */
@@ -169,7 +178,8 @@ void interaction(unsigned char* code, int* state, int clntSocket){
     /* receive message */
     
     if((recvMsgSize = recv(clntSocket, buffer, RCVBUFSIZE, 0)) < 0)
-      DieWithError("recv() failed");            
+      DieWithError("recv() failed");
+    
     msg_type1 *msg = (struct msg_type1 *)buffer;
     *code = *((unsigned char *)msg->code);
     
@@ -220,16 +230,42 @@ msg_type3* getType3Message(int randomPoke, int *attemps){
    code and one number of attemps, also the pokeImage file */
 
 msg_type4* getType4Message(int randomPoke){
- 
+
+  char* getPokeFile(int rPoke);
+  
   int code = 22;
-  int imageSize = 5000;
-  char* image = "Charizard";
+  int imageSize;
+  unsigned char* image;
+  FILE *picture;
+  char* pokeFile = getPokeFile(randomPoke);
+  
+  //Get Picture Size
+  printf("Getting Picture Size\n");
+  if((picture = fopen(pokeFile, "r")) == 0)
+    DieWithError("fopen() failed");
+  fseek(picture, 0, SEEK_END);
+  imageSize = ftell(picture);
+  fseek(picture, 0, SEEK_SET);
+  printf("image size: %i\n",imageSize);
+
+  //Store Picture as Byte Array
+  printf("Storing Picture as Byte Array\n");
+  image = (unsigned char *)malloc(imageSize);
+  if(!image){
+    DieWithError("malloc() failed");
+  }
+  fread(image,imageSize,sizeof(unsigned char),picture);	
+
+  /* Actually construct and return the message */
   
   msg_type4 *msg = (struct msg_type4 *)(unsigned char *)malloc(sizeof(unsigned char));  
   memcpy(msg->code, &code, sizeof(msg->code));
   memcpy(msg->idPokemon, &randomPoke, sizeof(msg->idPokemon));
   memcpy(msg->imageSize, &imageSize, sizeof(msg->imageSize));
-  memcpy(msg->image, &image, sizeof(msg->image));
+  memcpy(msg->image, image, sizeof(msg->image));
+  
+  fclose(picture);
+  
   return msg;
   
 }
@@ -242,9 +278,63 @@ void sendErrorCode(int clntSocket, char* message){
   
   memcpy(err->code, &code, sizeof(err->code));
   memcpy(err->errString, &message, sizeof(err->errString));
-
+  
   if(send(clntSocket, err, sizeof(err), 0) != sizeof(err))
     DieWithError("send() failed");    
   
+  
+}
+
+/* Return the name of the file that contains the image of the pokemon with Id rpoke */
+
+char* getPokeFile(int rPoke){
+
+  switch(rPoke){
+
+  case 0 :
+    
+    return "images/bulbasaur.png";
+    break;
+    
+  case 1 :
+    
+    return "images/ivysaur.png";
+    break;
+
+  case 2 :
+    
+    return "images/venusaur.png";
+    break;
+
+  case 3 :
+    
+    return "images/squirtle.png";
+    break;
+
+  case 4 :
+    
+    return "images/wartortle.png";
+    break;
+
+  case 5 :
+    
+    return "images/blastoise.png";
+    break;
+
+  case 6 :
+    
+    return "images/charmander.png";
+    break;
+
+  case 7 :
+    
+    return "images/charmeleon.png";
+    break;
+    
+  default :
+    
+    return "images/charizard.png";
+    
+  }
   
 }

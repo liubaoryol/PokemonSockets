@@ -9,9 +9,10 @@
 #include "MessageDefinition.h"
 
 #define SERV_PORT 9999            /* Server will run on this port */
-#define RCVBUFSIZE 32
+#define RCVBUFSIZE 3100
 
 void DieWithError(char *errorMessage); /*Error handling function*/
+
 
 int main(int argc, char *argv[])
 {
@@ -38,7 +39,7 @@ int main(int argc, char *argv[])
 	msg_type1 *msg_t1 = (struct msg_type1 *)(unsigned char *)malloc(sizeof (unsigned char));
 	
 	memcpy(msg_t1->code, &code, sizeof(msg_t1->code));
-
+	
 	/*CREATING SOCKET*/
 	if((sock=socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0)
 		DieWithError("socket () failed");
@@ -58,21 +59,21 @@ int main(int argc, char *argv[])
 
 	/*SENDING MSG*/
 	if((bytesSend = send(sock, msg_t1, sizeof(msg_type1), 0)) != pokeStringLen)
-		DieWithError("send() sent a different number of bytes than expected");
+	  DieWithError("send() sent a different number of bytes than expected");
 	else
-		printf("Bytes send to server: %i \n",bytesSend);
-
+	  printf("Bytes send to server: %i \n",bytesSend);
+	
 	/*RECEIVING MSG (STARTING POKEMON CAPTURE PROTOCOL 021: "Catch 'em all")*/
 	if((bytesRcvd=recv(sock,pokeBuffer,RCVBUFSIZE-1,0)) < 0)
-		DieWithError("recv () failed or connection died prematurely");
+	  DieWithError("recv () failed or connection died prematurely");
 
-	pokeBuffer[bytesRcvd]='\0';
+	    /* receive message */
+    
+	msg_type2 *msg = (struct msg_type2 *)pokeBuffer;
+	unsigned char codeR = *((unsigned char *)msg->code);
+	unsigned char pokeIdR = *((unsigned char *)msg->idPokemon);
+		
+	printf("Bytes received %i\nServer response:\ncode: %i\n id: %i\n",bytesRcvd,codeR,pokeIdR);
 
-	printf("Server response: ");
-	printf(pokeBuffer);
-	printf("\n");
 
-	close(sock);
-
-	exit(0);
 }

@@ -28,7 +28,7 @@ typedef struct msg_type4
   unsigned char code[1];
   unsigned char idPokemon[1];
   unsigned char imageSize[4];
-  unsigned char image[32];
+  unsigned char image[8000];
 }msg_type4;
 
 /* Estructura para los mensajes 40 (Error) */
