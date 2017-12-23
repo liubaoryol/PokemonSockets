@@ -7,24 +7,24 @@
 
 #define RCVBUFSIZE 1           /* Always receive just one byte */
 void DieWithError(char *errorMessage);            /* Error handling function */
-void interaction(unsigned char *code, int *state, int clntSocket);  /* Code/state handling function */
+void interaction(unsigned char *code, int *state, int clntSocket, int* numAttemps);  /* Code/state handling function */
 
 void HandleTCPClient(int clntSocket){
   
   unsigned char code = 0;         /* Code for the message */
   int state = 0;                  /* Current state of the server */
+  int numAttemps = 3;              /* for store the number of attemps left */
   
   /* Now starts the interaction between states, send and receive data until end of connection(state number 7)*/
   while(state != 7){             
     
-    interaction(&code, &state, clntSocket);
-    printf("Code now is equal to %i\n",code);
+    interaction(&code, &state, clntSocket, &numAttemps);
     
   }
   
   close(clntSocket);    /* Close client socket */
   
-  printf("The socket is closed\n");
+  printf("Termina la conexión, el socket cerró\n");
   
 };
 
@@ -34,13 +34,12 @@ void HandleTCPClient(int clntSocket){
    it can be understood as the transition funcion of the
    state machine,also sends a response */
 
-void interaction(unsigned char* code, int* state, int clntSocket){
+void interaction(unsigned char* code, int* state, int clntSocket, int* numAttemps){
   
   char serverResponse[22];     /* for store confirmation message */
   char buffer[RCVBUFSIZE];     /* buffer for received message */
   int recvMsgSize;             /* Size of received message */
   int codeToSend;              /* for store the codes of messages to send */
-  int numAttemps;              /* for store the number of attemps left */
   
   /* for store messages structures to send */
   
@@ -68,6 +67,7 @@ void interaction(unsigned char* code, int* state, int clntSocket){
     
     msg_type1 *msg = (struct msg_type1 *)buffer;
     *code = *((unsigned char *)msg->code);
+    printf("Un cliente desea capturar un Poke\n");
     
     /* Expected code at this point: 10 */
     if(*code != 10){
@@ -82,9 +82,10 @@ void interaction(unsigned char* code, int* state, int clntSocket){
     /* Send random Poke */
     msgtype2 = getRandomPoke(randomPoke);
     
-    if(send(clntSocket, msgtype2, sizeof(serverResponse), 0) != sizeof(serverResponse))
+    if(send(clntSocket, msgtype2, sizeof(struct msg_type2), 0) != sizeof(struct msg_type2))
       DieWithError("send() failed");
 
+    printf("Veamos si quiere capturar a %i\n",randomPoke);
     
   }else if(*code == 10 && *state == 1 || /* All this cases have the same behavior */
 	   *code == 30 && *state == 1 ||
@@ -95,7 +96,6 @@ void interaction(unsigned char* code, int* state, int clntSocket){
     if((recvMsgSize = recv(clntSocket, buffer, RCVBUFSIZE, 0)) < 0)
       DieWithError("recv() failed");        
     
-    printf("Analyzing code...\n");
     msg_type1 *msg = (struct msg_type1 *)buffer;
     *code = *((unsigned char *)msg->code);
     
@@ -118,8 +118,10 @@ void interaction(unsigned char* code, int* state, int clntSocket){
       
       /* Send it */
       
-      if(send(clntSocket, msgtype1, sizeof(serverResponse), 0) != sizeof(msgtype1))
+      if(send(clntSocket, msgtype1, sizeof(struct msg_type1), 0) != sizeof(struct msg_type1))
       DieWithError("send() failed");
+
+      printf("No quiso, digamos adiós :(\n");
       
       /* Change state to final state */
       *state = 7;
@@ -136,14 +138,16 @@ void interaction(unsigned char* code, int* state, int clntSocket){
 	/* Send the answer */
 	if(send(clntSocket, msgtype4, sizeof(struct msg_type4), 0) != sizeof(struct msg_type4))
 	DieWithError("send() failed");
+
+	printf("Lo logro! Enviando imagen...\n");
 	
 	/* Change state to "wait for terminate session" state */
 	*state = 6;
 	
       }else{
 	
-	/* S&#t! Try again, See if number of attemps is Zero */
-	if(numAttemps == 0){
+	/* S&#t! Try again, See if the last attemp failed */
+	if(*numAttemps == 1){
 	  /* This guy is a bad lucky fella, just let him know he got nottin' */	  
 	  
 	  /* Construct the message */
@@ -152,8 +156,10 @@ void interaction(unsigned char* code, int* state, int clntSocket){
 	  memcpy(msgtype1->code, &codeToSend, sizeof(msgtype1->code));
 	  
 	  /* Send it */
+
+	  printf("No lo logró, mala suerte, enviando respuesta...\n");
 	  
-	  if(send(clntSocket, msgtype1, sizeof(serverResponse), 0) != sizeof(msgtype1))
+	  if(send(clntSocket, msgtype1, sizeof(struct msg_type1), 0) != sizeof(struct msg_type1))
 	    DieWithError("send() failed");
 	  
 	  /* Change state to "wait for terminate session" state */
@@ -161,11 +167,11 @@ void interaction(unsigned char* code, int* state, int clntSocket){
 	  
 	}else{
 	  /* Still have attemps, Decrease by one and send correct Message */
-	  
-	  numAttemps--;
-	  msgtype3 = getType3Message(randomPoke, &numAttemps);
+	  printf("Fallo! le quedan %i intentos\n",*numAttemps - 1);
+	  *numAttemps = *numAttemps - 1;
+	  msgtype3 = getType3Message(randomPoke, numAttemps);
 	  /* Send the answer */      
-	  if(send(clntSocket, msgtype3, sizeof(msgtype3), 0) != sizeof(msgtype3))
+	  if(send(clntSocket, msgtype3, sizeof(struct msg_type3), 0) != sizeof(struct msg_type3))
 	    DieWithError("send() failed");
 	  
 	  /* State remains the same */
@@ -186,7 +192,7 @@ void interaction(unsigned char* code, int* state, int clntSocket){
     /* Expected code at this point: 32 */
     if(*code != 32){
       sendErrorCode(clntSocket, "Error: Unexpected code, expected code 32");
-      printf("Error:No message 32 at state 6, ending connection\n");
+      printf("Error:No se recibió un mensaje de termino de sesión, vaya modales,nos vamos de todas formas\n");
       *state = 7;
       return;
     }else
@@ -221,7 +227,7 @@ msg_type3* getType3Message(int randomPoke, int *attemps){
   msg_type3 *msg = (struct msg_type3 *)(unsigned char *)malloc(sizeof(unsigned char));  
   memcpy(msg->code, &code, sizeof(msg->code));
   memcpy(msg->idPokemon, &randomPoke, sizeof(msg->idPokemon));
-  memcpy(msg->numAttemps, &attemps, sizeof(msg->numAttemps));  
+  memcpy(msg->numAttemps, attemps, sizeof(msg->numAttemps));
   return msg;
   
 }
@@ -240,16 +246,13 @@ msg_type4* getType4Message(int randomPoke){
   char* pokeFile = getPokeFile(randomPoke);
   
   //Get Picture Size
-  printf("Getting Picture Size\n");
   if((picture = fopen(pokeFile, "r")) == 0)
     DieWithError("fopen() failed");
   fseek(picture, 0, SEEK_END);
   imageSize = ftell(picture);
   fseek(picture, 0, SEEK_SET);
-  printf("image size: %i\n",imageSize);
 
   //Store Picture as Byte Array
-  printf("Storing Picture as Byte Array\n");
   image = (unsigned char *)malloc(imageSize);
   if(!image){
     DieWithError("malloc() failed");
@@ -262,9 +265,7 @@ msg_type4* getType4Message(int randomPoke){
   memcpy(msg->code, &code, sizeof(msg->code));
   memcpy(msg->idPokemon, &randomPoke, sizeof(msg->idPokemon));
   memcpy(msg->imageSize, &imageSize, sizeof(msg->imageSize));
-  memcpy(msg->image, image, sizeof(msg->image));
-  
-  fclose(picture);
+  memcpy(msg->image, image, sizeof(msg->image));  
   
   return msg;
   

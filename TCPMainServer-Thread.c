@@ -32,7 +32,7 @@ int main(int argc, char *argv[]){
     /* Create client thread */
     if(pthread_create(&threadID, NULL, ThreadMain, (void *) threadArgs) != 0)
       DieWithError("pthread_create() failed");
-    printf("with thread %i \n",(long int) threadID);
+
   }
   /* NOT REACHED */
 }

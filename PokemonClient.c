@@ -10,7 +10,7 @@
 
 #define SERV_PORT 9999            /* Server will run on this port */
 
-#define RCVBUFSIZE 8000
+#define RCVBUFSIZEC 8000
 
 void DieWithError(char *errorMessage); /*Error handling function*/
 int askYes_No();
@@ -125,14 +125,14 @@ int main(int argc, char *argv[])
 				DieWithError("recv () failed or connection died prematurely");
 
 			msg_type1 *msgX = (struct msg_type1 *)pokeBuffer;
-    		code = *((unsigned char *)msgX->code);
+			code = *((unsigned char *)msgX->code);
 
 			/*Estado S4 (se recibió 21)*/ 
 			if(code == 21){
 				msg_type3 *msg21 = (struct msg_type3 *)pokeBuffer;
-				printf("Te quedan %u intentos\n",*((unsigned char *)msg21->numAttemps));
+				printf("Te quedan %i intentos\n",*((int *)msg21->numAttemps));
 				printf("¿Intentarlo de nuevo?\n");
-				if(askYes_No()==1){
+				if(askYes_No()==0){
 					printf("¡¡Intentemos de nuevo!!\n");
 					/*SENDING MSG*/
 					if((bytesSend = send(sock, msg30, sizeof(msg_type1), 0)) != pokeStringLen) //sending msg30
@@ -154,13 +154,11 @@ int main(int argc, char *argv[])
 				printf("¡Enhorabuena! Haz capturado a: %u\n",*((unsigned char *)msg22->idPokemon)); //NOTA: Es mejor que no se escriba solo el id, si no tambien el nombre del pokemon (base de datos?)
 				int imageSizeR = *((int *)msg22->imageSize);
 				char imageR[imageSizeR];
-				printf("Converting Byte Array to Picture\n");
 				char filename[32]; // The filename buffer.
     			snprintf(filename, sizeof(char) * 32, "%u.png", *((unsigned char *)msg22->idPokemon));
 				FILE *image;
 				image = fopen(filename, "w");
 				fwrite(msg22->image,1,sizeof(imageR),image);
-				printf("Bytes written %i\n",sizeof(imageR));
 				fclose(image);
 				captured = 1; //this should break the cycle
 			}else if (code == 23){ /*Estado S6 (se recibió 23)*/
@@ -209,7 +207,7 @@ int askYes_No(){
   	printf("1.No\n");
 
   	scanf("%d",&answer);
-  	if(answer!=0 || answer!=1)
+  	if(answer!=0 && answer!=1)
   		printf("Opción no valida, por favor eliga una de las anteriores\n");
   	else
   		//Aqui esta asegurado que la respuesta es 1 o 0
