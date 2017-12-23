@@ -9,7 +9,7 @@
 #include "MessageDefinition.h"
 
 #define SERV_PORT 9999            /* Server will run on this port */
-#define RCVBUFSIZEC 32
+#define RCVBUFSIZEC 8000
 
 void DieWithError(char *errorMessage); /*Error handling function*/
 int askYes_No();
