@@ -10,7 +10,7 @@
 
 #define SERV_PORT 9999            /* Server will run on this port */
 
-#define RCVBUFSIZE 3100
+#define RCVBUFSIZE 8000
 
 void DieWithError(char *errorMessage); /*Error handling function*/
 int askYes_No();
