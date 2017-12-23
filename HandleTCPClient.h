@@ -281,8 +281,6 @@ void sendErrorCode(int clntSocket, char* message){
   
   if(send(clntSocket, err, sizeof(err), 0) != sizeof(err))
     DieWithError("send() failed");    
-  
-  
 }
 
 /* Return the name of the file that contains the image of the pokemon with Id rpoke */
