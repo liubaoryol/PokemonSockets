@@ -148,7 +148,17 @@ int main(int argc, char *argv[])
 				}
 			}else if (code == 22){/*Estado S5 (se recibió 22)*/
 				msg_type4 *msg22 = (struct msg_type4 *)pokeBuffer;
-				printf("¡Enhorabuena! Haz capturado a: %u\n",*((unsigned char *)msg22->idPokemon));
+				printf("¡Enhorabuena! Haz capturado a: %u\n",*((unsigned char *)msg22->idPokemon)); //NOTA: Es mejor que no se escriba solo el id, si no tambien el nombre del pokemon (base de datos?)
+				int imageSizeR = *((int *)msg22->imageSize);
+				char imageR[imageSizeR];
+				printf("Converting Byte Array to Picture\n");
+				char filename[32]; // The filename buffer.
+    			snprintf(filename, sizeof(char) * 32, "%u.png", *((unsigned char *)msg22->idPokemon));
+				FILE *image;
+				image = fopen(filename, "w");
+				fwrite(msg22->image,1,sizeof(imageR),image);
+				printf("Bytes written %i\n",sizeof(imageR));
+				fclose(image);
 				captured = 1; //this should break the cycle
 			}else if (code == 23){ /*Estado S6 (se recibió 23)*/
 				printf("¡Diablos! Se ha escapado.....\n");
@@ -168,7 +178,7 @@ int main(int argc, char *argv[])
 	}
 
 	if(captured)
-		printf("Guardando en Pokedex y cerrando sesion.\n");
+		printf("Guardando en Pokedex y cerrando sesion.\n"); //Asegurarse que el pokemon no aparezca de nuevo o que la proxima vez que se encuentre se avise que ya fue capturado con anterioridad.
 	else if(canceled)
 		printf("Cerrando Sesion.\n");
 	else //runOutOfTries
@@ -206,7 +216,7 @@ int askYes_No(){
   return answer;
 }
 
-void sendErrorCode(int clntSocket, char* message){
+void sendErrorCode(int clntSocket, char* message){//by Alephsis
   int code = 40;
   
   msg_typeErr *err = (struct msg_typeErr *)(unsigned char *)malloc(sizeof(unsigned char));
