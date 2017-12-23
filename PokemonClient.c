@@ -54,6 +54,24 @@ int main(int argc, char *argv[])
 
 	pokeServAddr.sin_port = htons(servPort);
 
+
+	/* Set the timeouts for send and receive respectively */
+	
+	struct timeval timeout;      
+	timeout.tv_sec = 5;  /* wait 5 seconds */
+	timeout.tv_usec = 0;  /* and 0 microseconds */
+
+	/* for receive operations */
+	
+	if (setsockopt (sock, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout)) < 0)
+	  DieWithError("setsockopt failed\n");
+
+	/* for send operations */
+	
+	if (setsockopt (sock, SOL_SOCKET, SO_SNDTIMEO, (char *)&timeout, sizeof(timeout)) < 0)
+	  DieWithError("setsockopt failed\n");
+	
+
 	/*CONNECTING SOCKET*/
 	if((connect(sock,(struct sockaddr *)&pokeServAddr, sizeof(pokeServAddr))) < 0)
 		DieWithError("connect () failed");
