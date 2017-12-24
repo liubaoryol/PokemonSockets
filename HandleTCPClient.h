@@ -7,18 +7,21 @@
 
 #define RCVBUFSIZE 1           /* Always receive just one byte */
 void DieWithError(char *errorMessage);            /* Error handling function */
-void interaction(unsigned char *code, int *state, int clntSocket, int* numAttemps);  /* Code/state handling function */
+void interaction(unsigned char *code, int *state, int clntSocket, int* numAttemps,int randomPoke);  /* Code/state handling function */
 
 void HandleTCPClient(int clntSocket){
   
   unsigned char code = 0;         /* Code for the message */
   int state = 0;                  /* Current state of the server */
   int numAttemps = 3;              /* for store the number of attemps left */
+  srand((unsigned)time(NULL));    /* obtain random seed */
+  int randomPoke = rand() % 9;    /* generate random number from 0 to 8, the poke client is trying to capture */
+
   
   /* Now starts the interaction between states, send and receive data until end of connection(state number 7)*/
   while(state != 7){             
     
-    interaction(&code, &state, clntSocket, &numAttemps);
+    interaction(&code, &state, clntSocket, &numAttemps, randomPoke);
     
   }
   
@@ -34,7 +37,7 @@ void HandleTCPClient(int clntSocket){
    it can be understood as the transition funcion of the
    state machine,also sends a response */
 
-void interaction(unsigned char* code, int* state, int clntSocket, int* numAttemps){
+void interaction(unsigned char* code, int* state, int clntSocket, int* numAttemps, int randomPoke){
   
   char serverResponse[22];     /* for store confirmation message */
   char buffer[RCVBUFSIZE];     /* buffer for received message */
@@ -53,8 +56,6 @@ void interaction(unsigned char* code, int* state, int clntSocket, int* numAttemp
   msg_type4* getType4Message(int randomPoke);               /* returns the structure for send message type 4 */      
   void sendErrorCode(int clntSocket, char* message);        /* sends a error code 40 message to the client */
 
-  srand((unsigned)time(NULL));    /* obtain random seed */
-  int randomPoke = rand() % 9;    /* generate random number from 0 to 8, the poke client is trying to capture */
   
   /* Changing from start state 0 to state 1  */
   

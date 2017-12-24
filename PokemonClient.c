@@ -13,8 +13,8 @@
 #define SERV_PORT 9999            /* Server will run on this port */
 
 #define RCVBUFSIZEC 8000
-#define sqluser "luka"
-#define sqlpass "PerroLuka"
+#define sqluser "root"
+#define sqlpass NULL
 
 void DieWithError(char *errorMessage); /*Error handling function*/
 int askYes_No();
@@ -291,7 +291,7 @@ char* getPokemonName(unsigned char idPokemon){
     	exit(1);
   	}
 
-  	if (mysql_real_connect(con, "localhost", sqluser, sqlpass, "PokeBase", 0, NULL, 0) == NULL) 
+  	if (mysql_real_connect(con, "127.0.0.1", sqluser, sqlpass, "PokeBase", 0, NULL, 0) == NULL) 
   {
       DieSQLError(con);
   }
@@ -337,7 +337,7 @@ int checkGivenUserData(char* user){
     	exit(1);
   	}
 
-  	if (mysql_real_connect(con, "localhost", sqluser, sqlpass, "PokeBase", 0, NULL, 0) == NULL) 
+  	if (mysql_real_connect(con, "127.0.0.1", sqluser, sqlpass, "PokeBase", 0, NULL, 0) == NULL) 
   {
       DieSQLError(con);
   }
@@ -379,7 +379,7 @@ int getUserID(char* user){
     	exit(1);
   	}
 
-  	if (mysql_real_connect(con, "localhost", sqluser, sqlpass, "PokeBase", 0, NULL, 0) == NULL) 
+  	if (mysql_real_connect(con, "127.0.0.1", sqluser, sqlpass, "PokeBase", 0, NULL, 0) == NULL) 
   {
       DieSQLError(con);
   }
@@ -425,7 +425,7 @@ int checkPokedex(int idUsuario, unsigned char idPokemon){
     	exit(1);
   	}
 
-  	if (mysql_real_connect(con, "localhost", sqluser, sqlpass, "PokeBase", 0, NULL, 0) == NULL) 
+  	if (mysql_real_connect(con, "127.0.0.1", sqluser, sqlpass, "PokeBase", 0, NULL, 0) == NULL) 
   {
       DieSQLError(con);
   }
@@ -467,7 +467,7 @@ void registerInPokedex(int idUsuario, unsigned char idPokemon){
     	exit(1);
   	}
 
-  	if (mysql_real_connect(con, "localhost", sqluser, sqlpass, "PokeBase", 0, NULL, 0) == NULL) 
+  	if (mysql_real_connect(con, "127.0.0.1", sqluser, sqlpass, "PokeBase", 0, NULL, 0) == NULL) 
   {
       DieSQLError(con);
   }

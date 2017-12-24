@@ -1,4 +1,4 @@
-#CREATE DATABASE PokeBase;
+CREATE DATABASE PokeBase;
 USE PokeBase;
 
 DROP TABLE IF EXISTS Pokedex;
