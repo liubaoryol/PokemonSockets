@@ -8,12 +8,13 @@ void DieWithError(char *errorMessage);   /* Error handling function */
 
 int CreateTCPServerSocket(unsigned short port){
   int sock;                        /* Socket to create */
-  struct sockaddr_in servAddr; /* Local address */
+  struct sockaddr_in servAddr    ; /* Local address */
 
   /* Create socket for incoming connections */
   if((sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0)
     DieWithError("socket() failed");
-
+  
+  
   /* Construct local address structure */
   memset(&servAddr, 0 ,sizeof(servAddr));        /* Zero out structure */
   servAddr.sin_family      = AF_INET;            /* Internet address family */
