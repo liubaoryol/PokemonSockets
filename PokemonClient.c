@@ -5,20 +5,49 @@
 #include <string.h>         /* for memset() */
 #include <unistd.h>         /* for close() */
 #include <pthread.h>         /* for POSIX threads */
+#include <my_global.h>
+#include <mysql.h>
 #include "DieWithError.h"  /* error handling function */
 #include "MessageDefinition.h"
 
 #define SERV_PORT 9999            /* Server will run on this port */
 
 #define RCVBUFSIZEC 8000
+#define sqluser "luka"
+#define sqlpass "PerroLuka"
 
 void DieWithError(char *errorMessage); /*Error handling function*/
 int askYes_No();
 void sendErrorCode(int clntSocket, char* message);
+char* getPokemonName(unsigned char idPokemon);
+void DieSQLError(MYSQL *con);
+int checkGivenUserData(char* user);
+int getUserID(char* user);
+int checkPokedex(int idUsuario, unsigned char idPokemon);
+void registerInPokedex(int idUsuario, unsigned char idPokemon);
 
 
 int main(int argc, char *argv[])
-{
+{	
+	if((argc != 3)){ /*temp*/
+		fprintf(stderr, "Usage: %s <ServerIP> <Port>\n",argv[0]);
+		exit(1);
+	}
+	/* Cosas para "Inicio de Sesion"*/
+	//Por ahora solo basta con el nombre de usuario, se puede poner la contraseña facil....
+	printf("Inicia Sesion;\n");
+	int failed = 1;
+	char user[32];
+
+	while(failed){
+		printf("Nombre de Usuario:\n");
+		scanf("%s",user);
+
+		failed = checkGivenUserData(user);
+	}
+
+	int idUsuario = getUserID(user);
+
 	int sock;
 	struct sockaddr_in pokeServAddr;
 	unsigned short servPort;
@@ -29,11 +58,6 @@ int main(int argc, char *argv[])
 	int bytesRcvd, bytesSend;
 
 	unsigned char code = 10;
-
-	if((argc != 3)){ /*temp*/
-		fprintf(stderr, "Usage: %s <ServerIP> <Port>\n",argv[0]);
-		exit(1);
-	}
 
 	servIP = argv[1];
 	servPort = atoi(argv[2]); /*cast String to int*/
@@ -84,7 +108,14 @@ int main(int argc, char *argv[])
     }
 
     unsigned char pokemon = *((unsigned char *)msg20->idPokemon);
-    printf("¿Deseas Capturar el Pokemon %u?\n",pokemon);
+    printf("¿Deseas Capturar el Pokemon %s?\n",getPokemonName(pokemon));
+
+    int already;
+    if(already=checkPokedex(idUsuario,pokemon)){
+    	printf("Parece que ya tienes a %s registrado en tu Pokedex\n",getPokemonName(pokemon));
+    }
+
+    printf("Already %d\n",already);
 
     int captured;
 	int canceled;
@@ -151,7 +182,8 @@ int main(int argc, char *argv[])
 				}
 			}else if (code == 22){/*Estado S5 (se recibió 22)*/
 				msg_type4 *msg22 = (struct msg_type4 *)pokeBuffer;
-				printf("¡Enhorabuena! Haz capturado a: %u\n",*((unsigned char *)msg22->idPokemon)); //NOTA: Es mejor que no se escriba solo el id, si no tambien el nombre del pokemon (base de datos?)
+
+				printf("¡Enhorabuena! Haz capturado a: %s\n",getPokemonName(*((unsigned char *)msg22->idPokemon))); //NOTA: Es mejor que no se escriba solo el id, si no tambien el nombre del pokemon (base de datos?)
 				int imageSizeR = *((int *)msg22->imageSize);
 				char imageR[imageSizeR];
 				char filename[32]; // The filename buffer.
@@ -178,8 +210,11 @@ int main(int argc, char *argv[])
 			printf("Message 31: Bytes send to server: %i \n",bytesSend);
 	}
 
-	if(captured)
+	if(captured){
 		printf("Guardando en Pokedex y cerrando sesion.\n"); //Asegurarse que el pokemon no aparezca de nuevo o que la proxima vez que se encuentre se avise que ya fue capturado con anterioridad.
+		if(!already)
+			registerInPokedex(idUsuario,pokemon);
+	}
 	else if(canceled)
 		printf("Cerrando Sesion.\n");
 	else //runOutOfTries
@@ -227,6 +262,211 @@ void sendErrorCode(int clntSocket, char* message){//by Alephsis
 
   if(send(clntSocket, err, sizeof(err), 0) != sizeof(err))
     DieWithError("send() failed");    
+}
+
+char* getPokemonName(unsigned char idPokemon){
+	MYSQL *con = mysql_init(NULL);
+
+  	if (con == NULL) 
+  	{
+      	fprintf(stderr, "%s\n", mysql_error(con));
+    	exit(1);
+  	}
+
+  	if (mysql_real_connect(con, "localhost", sqluser, sqlpass, "PokeBase", 0, NULL, 0) == NULL) 
+  {
+      DieSQLError(con);
+  }
+
+  char query[128]; // The query buffer.
+  snprintf(query, sizeof(char) * 128, "SELECT nombre FROM Pokemon WHERE idPokemon = %u;", idPokemon);
+
+  if (mysql_query(con, query)) 
+  {
+      DieSQLError(con);
+  }
+
+  MYSQL_RES *result = mysql_store_result(con);
   
+  if (result == NULL) 
+  {
+      DieSQLError(con);
+  }
+
+  int num_fields = mysql_num_fields(result);
+
+  MYSQL_ROW row;
+  row = mysql_fetch_row(result);
+
+  char* returnvalue = row[0];
+
+  mysql_free_result(result);
+  mysql_close(con);
+
+  if(returnvalue){
+    return returnvalue; 	
+  }else{
+   	return "NULL";
+  }
+}
+
+int checkGivenUserData(char* user){
+	MYSQL *con = mysql_init(NULL);
+
+  	if (con == NULL) 
+  	{
+      	fprintf(stderr, "%s\n", mysql_error(con));
+    	exit(1);
+  	}
+
+  	if (mysql_real_connect(con, "localhost", sqluser, sqlpass, "PokeBase", 0, NULL, 0) == NULL) 
+  {
+      DieSQLError(con);
+  }
+
+  char query[128]; // The query buffer.
+  snprintf(query, sizeof(char) * 128, "SELECT nombre_usuario FROM Usuario WHERE nombre_usuario = \"%s\";" ,user);
+
+  if (mysql_query(con, query)) 
+  {
+      DieSQLError(con);
+  }
+
+  MYSQL_RES *result = mysql_store_result(con);
   
+  if (result == NULL) 
+  {
+  	  DieSQLError(con);
+  }
+
+  MYSQL_ROW row;
+  int failed = 1;
+  
+  if((row = mysql_fetch_row(result))) 
+  { 
+      failed = 0;
+  }
+
+  mysql_free_result(result);
+  mysql_close(con);
+  return failed;
+}
+
+int getUserID(char* user){
+	MYSQL *con = mysql_init(NULL);
+
+  	if (con == NULL) 
+  	{
+      	fprintf(stderr, "%s\n", mysql_error(con));
+    	exit(1);
+  	}
+
+  	if (mysql_real_connect(con, "localhost", sqluser, sqlpass, "PokeBase", 0, NULL, 0) == NULL) 
+  {
+      DieSQLError(con);
+  }
+
+  char query[128]; // The query buffer.
+  snprintf(query, sizeof(char) * 128, "SELECT idUsuario FROM Usuario WHERE nombre_usuario = \"%s\";" ,user);
+
+  if (mysql_query(con, query)) 
+  {
+      DieSQLError(con);
+  }
+
+  MYSQL_RES *result = mysql_store_result(con);
+  
+  if (result == NULL) 
+  {
+      DieSQLError(con);
+  }
+
+  int num_fields = mysql_num_fields(result);
+
+  MYSQL_ROW row;
+  row = mysql_fetch_row(result);
+
+  int returnvalue = atoi(row[0]);
+
+  mysql_free_result(result);
+  mysql_close(con);
+
+  if(returnvalue){
+    return returnvalue; 	
+  }else{
+   	return -1;
+  }
+}
+
+int checkPokedex(int idUsuario, unsigned char idPokemon){
+	MYSQL *con = mysql_init(NULL);
+
+  	if (con == NULL) 
+  	{
+      	fprintf(stderr, "%s\n", mysql_error(con));
+    	exit(1);
+  	}
+
+  	if (mysql_real_connect(con, "localhost", sqluser, sqlpass, "PokeBase", 0, NULL, 0) == NULL) 
+  {
+      DieSQLError(con);
+  }
+
+  char query[128]; // The query buffer.
+  snprintf(query, sizeof(char) * 128, "SELECT idPokedex FROM Pokedex WHERE idPokemon = %u AND idUsuario = %d;", idPokemon, idUsuario);
+
+  if (mysql_query(con, query)) 
+  {
+      DieSQLError(con);
+  }
+
+  MYSQL_RES *result = mysql_store_result(con);
+  
+  if (result == NULL) 
+  {
+  	  DieSQLError(con);
+  }
+
+  MYSQL_ROW row;
+  int registered = 0;
+  
+  if((row = mysql_fetch_row(result))) 
+  { 
+      registered = 1;
+  }
+
+  mysql_free_result(result);
+  mysql_close(con);
+  return registered;
+}
+
+void registerInPokedex(int idUsuario, unsigned char idPokemon){
+	MYSQL *con = mysql_init(NULL);
+
+  	if (con == NULL) 
+  	{
+      	fprintf(stderr, "%s\n", mysql_error(con));
+    	exit(1);
+  	}
+
+  	if (mysql_real_connect(con, "localhost", sqluser, sqlpass, "PokeBase", 0, NULL, 0) == NULL) 
+  {
+      DieSQLError(con);
+  }
+
+  char query[128]; // The query buffer.
+  snprintf(query, sizeof(char) * 128, "INSERT INTO Pokedex (idUsuario,idPokemon) VALUES (%d,%u);",idUsuario, idPokemon);
+
+  if (mysql_query(con, query)) {
+      DieSQLError(con);
+  }
+
+  mysql_close(con);
+  return;
+}
+
+void DieSQLError(MYSQL *con){
+	fprintf(stderr, "%s\n", mysql_error(con));
+    mysql_close(con);
+    exit(1);
 }
