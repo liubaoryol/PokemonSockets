@@ -34,6 +34,7 @@ REFERENCES Pokemon(idPokemon) ON DELETE CASCADE ON UPDATE CASCADE;
 
 INSERT INTO Usuario VALUES (1,"Juan","PerroLuka");
 INSERT INTO Usuario VALUES (2,"Alexis","PassAlexis");
+INSERT INTO Usuario VALUES (3,"Liuba","Tommy");
 
 INSERT INTO Pokemon VALUES (1,"Bulbasor","PLACEHOLDER");
 INSERT INTO Pokemon VALUES (2,"Ivysaur","PLACEHOLDER");
